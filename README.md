@@ -1,5 +1,9 @@
 # SynthEdge
 
+![CI](https://github.com/Juzt-nik/SynthEdge/actions/workflows/ci.yml/badge.svg)
+![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
+
 **Diagnosis-first synthetic data augmentation for imbalanced tabular datasets.**
 
 > SMOTE generated **114x more** synthetic samples and achieved **22 points worse recall**.  

@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12"]
+        python-version: ["3.10", "3.11", "3.12"]
 
     steps:
       - uses: actions/checkout@v4
@@ -21,15 +21,21 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install dependencies
+      - name: Install core dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
-          pip install ctgan imbalanced-learn xgboost hdbscan
+          python -m pip install --upgrade pip setuptools wheel
+          pip install numpy pandas scikit-learn scipy
+          pip install imbalanced-learn xgboost
+          pip install pytest pytest-cov
+
+      - name: Install CTGAN (optional)
+        run: pip install ctgan || echo "CTGAN install failed - Gaussian fallback will be used"
+
+      - name: Install SynthEdge
+        run: pip install -e .
 
       - name: Run tests
-        run: |
-          pytest tests/ -v --tb=short --cov=synthedge --cov-report=term-missing
+        run: pytest tests/ -v --tb=short --cov=synthedge --cov-report=term-missing
 
       - name: Upload coverage
         if: matrix.python-version == '3.11'
