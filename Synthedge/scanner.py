@@ -58,8 +58,11 @@ def scan(X_sc, y, n_bins=None, top_k=10, pca_components=3):
     if n_bins is None:
         n_bins = adaptive_bins(n_train)
 
+    pca_components = min(pca_components, X_sc.shape[1], X_sc.shape[0])
     pca = PCA(n_components=pca_components, random_state=42)
     X_pca = pca.fit_transform(X_sc)
+    while X_pca.shape[1] < 3:
+        X_pca = np.hstack([X_pca, np.zeros((X_pca.shape[0], 1))])
 
     pc1, pc2, pc3 = X_pca[:, 0], X_pca[:, 1], X_pca[:, 2]
     e1 = np.linspace(pc1.min() - 0.01, pc1.max() + 0.01, n_bins + 1)
