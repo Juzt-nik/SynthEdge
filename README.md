@@ -8,6 +8,9 @@
 
 ---
 
+![CI](https://github.com/Juzt-nik/SynthEdge/actions/workflows/ci.yml/badge.svg)
+![Python](https://img.shields.io/pypi/pyversions/synthedge)
+
 ## The problem with SMOTE
 
 SMOTE answers *"how do I get more data?"* — it generates blindly across all minority samples.
