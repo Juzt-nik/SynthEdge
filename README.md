@@ -323,9 +323,3 @@ pytest tests/ -v
   note   = {pip install synthedge}
 }
 ```
-
----
-
-## License
-
-MIT — see [LICENSE](LICENSE).
