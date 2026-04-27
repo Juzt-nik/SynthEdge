@@ -215,6 +215,33 @@ class SynthEdge:
 
     # ── convenience properties ─────────────────────────────────────────────
 
+
+    def save_report(self, output_path="synthedge_report.html",
+                    dataset_name="Dataset", comparison_results=None):
+        """
+        Generate and save a standalone HTML gap report.
+
+        Parameters
+        ----------
+        output_path        : str — path to save HTML file
+        dataset_name       : str — shown in report header
+        comparison_results : dict or None — model metrics to chart
+            Format: {"SMOTE": {"recall":0.3,"f1":0.28,"roc_auc":0.7}, ...}
+
+        Returns
+        -------
+        str — path to saved report
+        """
+        from .report import generate_report
+        if self._top_voxels is None:
+            self.analyze()
+        return generate_report(
+            self,
+            output_path=output_path,
+            dataset_name=dataset_name,
+            comparison_results=comparison_results,
+        )
+
     @property
     def gap_map(self):
         """Return the top voxels as a clean DataFrame."""

@@ -1,0 +1,16 @@
+README.md
+pyproject.toml
+synthedge/__init__.py
+synthedge/cli.py
+synthedge/core.py
+synthedge/quality.py
+synthedge/scanner.py
+synthedge/synthesizer.py
+synthedge/transfer.py
+synthedge.egg-info/PKG-INFO
+synthedge.egg-info/SOURCES.txt
+synthedge.egg-info/dependency_links.txt
+synthedge.egg-info/entry_points.txt
+synthedge.egg-info/requires.txt
+synthedge.egg-info/top_level.txt
+tests/test_synthedge.py

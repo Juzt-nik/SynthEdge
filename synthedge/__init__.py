@@ -22,6 +22,7 @@ from .core      import SynthEdge
 from .quality   import classify_severity, gap_region_kl
 from .scanner   import scan, adaptive_bins
 from .transfer  import find_matching_gaps, transfer_samples, apply_transfers
+from .report    import generate_report
 
 __version__ = "0.1.0"
 __all__ = [
@@ -33,4 +34,5 @@ __all__ = [
     "find_matching_gaps",
     "transfer_samples",
     "apply_transfers",
+    "generate_report",
 ]
