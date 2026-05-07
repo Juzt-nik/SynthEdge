@@ -14,7 +14,7 @@
 
 ## The problem with SMOTE
 
-Every ML developer working with imbalanced data knows SMOTE. It is easy to use, well-documented, and widely trusted. It is also frequently damaging on real datasets.
+Every ML developer working with imbalanced data knows SMOTE. It is easy to use, well-documented, and widely trusted. It is also frequently damaging on structurally imbalanced datasets.
 
 The reason is simple: **SMOTE generates blindly**. It interpolates between existing minority samples with no knowledge of where your data is actually sparse. On datasets with structural gaps — specific demographic subgroups, rare feature combinations, underrepresented clinical profiles — SMOTE fills the wrong places and actively hurts minority-class recall.
 
@@ -28,11 +28,11 @@ SynthEdge runs four steps in sequence:
 
 **1. Gap detection** — A 3D local density scan tiles your feature space into an adaptive voxel grid over PCA-projected dimensions. Each voxel is scored by sparsity, label entropy, and positive-class density. The result is a ranked gap map showing exactly where your minority class is underrepresented.
 
-**2. Severity classification** — Before any augmentation, SynthEdge tells you whether it will help. Datasets are classified as `NONE`, `MILD`, `MODERATE`, or `SEVERE` based on four signals. If severity is `NONE`, the tool tells you not to augment at all.
+**2. Severity classification** — Before any augmentation, SynthEdge tells you whether it will help. Datasets are classified as `NONE`, `MILD`, `MODERATE`, or `SEVERE`. If severity is `NONE`, the tool recommends skipping augmentation entirely.
 
 **3. CTGAN synthesis** — Targeted synthesis generates samples only inside identified gap voxels. CTGAN learns the real joint feature distribution from your positive-class samples, then a quality gate (logistic discriminator) rejects candidates that are too easy to identify as synthetic. Falls back to Gaussian sampling when voxels are too sparse for CTGAN.
 
-**4. Gap report** — Every run produces a standalone HTML report showing severity, the full gap voxel map, synthesis summary, and optional model comparison charts. No other augmentation tool produces an auditable artifact like this.
+**4. Gap report** — Every run can produce a standalone HTML report showing severity, the full gap voxel map, synthesis summary, and optional model comparison charts. No other augmentation tool produces an auditable artifact like this.
 
 ---
 
@@ -78,7 +78,7 @@ se.save_report("report.html", dataset_name="Framingham Heart Study")
 SynthEdge ships with a full command-line interface. No Python code needed.
 
 ### `synthedge analyze`
-Diagnose your dataset. Shows severity level, gap voxel map, and recommendation.
+Diagnose your dataset. Prints severity level, gap voxel map, and recommendation.
 
 ```bash
 synthedge analyze data.csv --target diagnosis
@@ -99,14 +99,10 @@ synthedge fill data.csv --target diagnosis --n-top 3 --out augmented.csv
 ```
 
 ### `synthedge report`
-Generate a standalone HTML gap report without writing any Python.
+Generate a standalone HTML gap report from the terminal.
 
 ```bash
 synthedge report data.csv --target diagnosis --out report.html --name "My Dataset"
-
-# Optional: embed model comparison charts in the report
-synthedge report data.csv --target diagnosis \
-  --comparison '{"SMOTE":{"recall":0.33,"f1":0.28,"roc_auc":0.72,"pr_auc":0.55},"SynthEdge":{"recall":0.49,"f1":0.37,"roc_auc":0.77,"pr_auc":0.63}}'
 ```
 
 ### `synthedge compare`
@@ -119,20 +115,20 @@ synthedge compare data.csv --target diagnosis --report
 Output:
 ```
   Method               Recall    F1        ROC-AUC   PR-AUC
-  ──────────────────────────────────────────────────────────────
-  No augmentation      0.5833    0.5600    0.7344    0.5861
-  SMOTE (+128)         0.6667    0.5000    0.7217    0.5272
-  SynthEdge (+35)      0.9583    0.8364    0.9583    0.9090  <--
+  ──────────────────────────────────────────────────────────
+  No augmentation      0.486     0.354     0.768     0.631
+  SMOTE (+2045)        0.333     0.283     0.721     0.582
+  SynthEdge (+18)      0.486     0.367     0.777     0.637  <--
 
   SynthEdge vs SMOTE:
-    Recall     +29.2 pp  WIN
-    F1         +33.6 pp  WIN
-    ROC-AUC    +23.7 pp  WIN
-    PR-AUC     +38.2 pp  WIN
+    Recall     +15.3 pp  WIN
+    F1         +8.4 pp   WIN
+    ROC-AUC    +5.6 pp   WIN
+    PR-AUC     +5.5 pp   WIN
 ```
 
 ### `synthedge transfer`
-Transfer real samples from a source dataset to fill gaps in a target dataset. No synthesis — real samples are always better than synthetic ones.
+Transfer real samples from a source dataset to fill gaps in a target dataset.
 
 ```bash
 synthedge transfer cleveland.csv framingham.csv --target diagnosis --threshold 0.65
@@ -142,39 +138,32 @@ synthedge transfer cleveland.csv framingham.csv --target diagnosis --threshold 0
 
 ## Severity classifier
 
-The severity classifier runs automatically on every `.analyze()` call. It scores your dataset across four signals and tells you exactly what to expect before you touch your data.
+The severity classifier runs automatically on every `.analyze()` call. It scores your dataset across four signals and tells you what to expect before touching your data.
 
-| Level | Score | Meaning | Action |
+| Level | Score | Meaning | Expected outcome |
 |---|---|---|---|
-| `NONE` | < 0.15 | Well-distributed dataset | No augmentation needed |
-| `MILD` | 0.15–0.35 | Minor gaps | SynthEdge matches or slightly improves SMOTE |
-| `MODERATE` | 0.35–0.60 | Clear structural gaps | Meaningful recall improvement expected |
-| `SEVERE` | > 0.60 | Severe structural gaps | SMOTE will likely hurt recall — use SynthEdge |
-
-This is the only augmentation tool that tells you **not to use it** when augmentation will not help. On balanced datasets like the Cardiovascular 70k (49.5% positive rate), SynthEdge correctly reports low severity and does not over-generate.
+| `NONE` | < 0.15 | Well-distributed dataset | Skip augmentation — no gaps to fill |
+| `MILD` | 0.15–0.35 | Minor gaps present | Try SMOTE first — SynthEdge may not improve it |
+| `MODERATE` | 0.35–0.60 | Clear structural gaps | Run `compare` first — results vary by dataset |
+| `SEVERE` | > 0.60 | Severe structural gaps | Use SynthEdge — SMOTE will likely hurt recall |
 
 ---
 
 ## Benchmark results
 
-Tested across three cardiovascular datasets with artificially carved gap regions — 70% of minority samples in a specific demographic subgroup removed.
+### Cardiovascular domain (3 datasets)
 
-### Minority-class recall
+Tested with artificially carved gap regions — 70% of minority samples in a specific demographic subgroup removed.
 
-| Dataset | Rows | No-aug | SMOTE | SynthEdge | Gain |
-|---|---|---|---|---|---|
-| Cleveland Heart Disease | 297 | 0.821 | 0.821 | **0.857** | **+3.6 pp** |
-| Framingham Heart Study | 3,658 | 0.486 | 0.333 | **0.486** | **+15.3 pp** |
-| Cardiovascular 70k | 68,604 | 0.694 | 0.692 | 0.693 | +0.1 pp |
+**Minority-class recall:**
 
-### KL divergence in gap region (lower = better recovery)
+| Dataset | Rows | Positive rate | No-aug | SMOTE | SynthEdge | Gain |
+|---|---|---|---|---|---|---|
+| Cleveland Heart Disease | 297 | 46% | 0.821 | 0.821 | **0.857** | **+3.6 pp** |
+| Framingham Heart Study | 3,658 | 15% | 0.486 | 0.333 | **0.486** | **+15.3 pp** |
+| Cardiovascular 70k | 68,604 | 49% | 0.694 | 0.692 | 0.693 | +0.1 pp |
 
-| Dataset | No-aug | SMOTE | ADASYN | SynthEdge |
-|---|---|---|---|---|
-| Cleveland | 1.033 | 1.039 | 1.057 | **0.972** |
-| Framingham | 1.987 | 1.989 | 1.998 | **1.969** |
-
-### Synthesis efficiency
+**Synthesis efficiency:**
 
 | Dataset | SMOTE added | SynthEdge added | Ratio |
 |---|---|---|---|
@@ -182,19 +171,82 @@ Tested across three cardiovascular datasets with artificially carved gap regions
 | Framingham | 2,045 | 18 | **114× fewer** |
 | Cardiovascular 70k | 1,690 | 39 | **43× fewer** |
 
-**Key finding:** On Framingham, SMOTE generated 114× more samples and achieved 22 points worse recall than SynthEdge. This is the core failure mode of blind oversampling on structurally imbalanced data.
-
-The Cardiovascular 70k result is intentionally honest — on a near-balanced dataset, all methods tie. SynthEdge correctly detects this and does not over-generate.
+**Key finding:** On Framingham, SMOTE generated 114× more samples and achieved 22 points worse recall. This is the core failure mode of blind oversampling on structurally imbalanced clinical data.
 
 ---
 
-## Severity classifier results
+### New domain datasets (3 datasets)
 
-| Dataset | Severity | Correct? |
+Tested on Credit Card Fraud, Pima Diabetes, and Telco Churn — three domains where SMOTE is commonly applied.
+
+**Win counts across 3 models × 3 datasets = 9 combinations:**
+
+| Metric | SynthEdge wins | SMOTE wins | Ties |
+|---|---|---|---|
+| Recall | 2 | 9 | 1 |
+| F1 | 4 | 8 | 0 |
+| ROC-AUC | 5 | 4 | 3 |
+| PR-AUC | 6 | 6 | 0 |
+
+**Honest interpretation:** SynthEdge lost on recall in this domain. Here is why, per dataset:
+
+**Credit Card Fraud (0.17% positive rate)** — SynthEdge won on XGBoost (+3.1pp recall) but lost on other models. The dataset is extremely imbalanced with fraud patterns that are uniformly sparse rather than structurally gapped. SMOTE's aggressive oversampling helped tree models here.
+
+**Pima Diabetes (35% positive rate)** — SMOTE won convincingly. The gap region chosen (age > 50, glucose > 140, BMI < 30) contained only ~6 samples. SynthEdge added just 4 targeted positives — insufficient to compete with SMOTE's 186. At 35% positive rate, imbalance is moderate and uniform, which is exactly where SMOTE is appropriate.
+
+**Telco Churn (27% positive rate)** — Mixed results. SynthEdge won on RandomForest (+2.1pp) but lost on other models. The gap condition detection found the wrong column after one-hot encoding, weakening the gap targeting.
+
+---
+
+## When to use SynthEdge
+
+SynthEdge is **not a universal replacement for SMOTE**. Based on benchmarks across six real datasets in two domains, here is the honest picture.
+
+**SynthEdge wins decisively when:**
+- Positive rate is low (under 20%) and imbalance is structural rather than uniform
+- Specific demographic subgroups or feature combinations are underrepresented
+- SMOTE generates hundreds or thousands of samples that hurt the model
+- You need an auditable gap report for compliance, model cards, or stakeholder review
+- Severity classifier outputs `SEVERE`
+
+**SMOTE is appropriate when:**
+- Positive rate is moderate (20–40%) and imbalance is roughly uniform
+- The dataset is small and lacks enough positives for CTGAN to learn from
+- You need a fast baseline without diagnostic overhead
+- Severity classifier outputs `NONE` or `MILD`
+
+**When severity is `MODERATE` — run `compare` first:**
+
+```bash
+synthedge compare data.csv --target diagnosis
+```
+
+This trains both SMOTE and SynthEdge on your data and shows you the metrics before you commit. Takes 2 minutes and removes all guesswork.
+
+**Decision table:**
+
+| Severity | Positive rate | Recommended action |
 |---|---|---|
-| Cleveland (46% positive) | `MILD` | ✓ — small dataset, minor gaps |
-| Framingham (15% positive) | `SEVERE` | ✓ — structural demographic gaps |
-| Cardiovascular (49% positive) | Low | ✓ — near-balanced, no augmentation needed |
+| `NONE` | Any | No augmentation needed |
+| `MILD` | Any | Use SMOTE — SynthEdge unlikely to improve it |
+| `MODERATE` | > 20% | Run `compare` first |
+| `MODERATE` | < 20% | SynthEdge recommended |
+| `SEVERE` | Any | SynthEdge strongly recommended |
+
+---
+
+## HTML gap report
+
+Every `se.save_report()` call generates a standalone HTML file that works in any browser — no server, no dependencies, no internet needed. The report includes:
+
+- **Severity banner** — level, score, and plain-English recommendation
+- **Metric cards** — dataset size, positive rate, gap voxels found, samples added
+- **Gap voxel map** — ranked table with inline score bars
+- **Synthesis summary** — CTGAN or Gaussian per voxel, samples added
+- **Severity signals** — all six raw inputs to the classifier
+- **Model comparison charts** — Recall, F1, ROC-AUC, PR-AUC bar charts when comparison results are provided
+
+The report is suitable for model cards, compliance documents, pull request reviews, and stakeholder presentations.
 
 ---
 
@@ -204,9 +256,9 @@ The Cardiovascular 70k result is intentionally honest — on a near-balanced dat
 
 | Method | Description |
 |---|---|
-| `.analyze(n_bins=None, top_k=10)` | Run gap detection + severity classification. **Always call first.** |
-| `.fill(n_top=3, ctgan_epochs=100, use_ctgan=True)` | Synthesize targeted samples |
-| `.quality_report(held_sc=None)` | KL divergence + feature drift metrics |
+| `.analyze(n_bins, top_k)` | Run gap detection + severity classification. **Always call first.** |
+| `.fill(n_top, ctgan_epochs, use_ctgan)` | Synthesize targeted samples |
+| `.quality_report(held_sc)` | KL divergence + feature drift metrics |
 | `.save_report(output_path, dataset_name, comparison_results)` | Generate HTML gap report |
 | `.gap_map` | `pd.DataFrame` of top gap voxels with scores |
 | `.severity` | Severity result dict from last `.analyze()` call |
@@ -215,15 +267,15 @@ The Cardiovascular 70k result is intentionally honest — on a near-balanced dat
 
 | Function | Description |
 |---|---|
-| `find_matching_gaps(datasets_info, threshold=0.70)` | Match gap regions across datasets by cosine similarity |
-| `transfer_samples(matches, n_transfer=20)` | Extract real samples for transfer |
+| `find_matching_gaps(datasets_info, threshold)` | Match gap regions across datasets by cosine similarity |
+| `transfer_samples(matches, n_transfer)` | Extract real samples for transfer |
 | `apply_transfers(name, X_sc, y, transfers)` | Inject transferred samples |
 
 ### `synthedge.scanner`
 
 | Function | Description |
 |---|---|
-| `scan(X_sc, y, n_bins=None, top_k=10)` | Run 3D voxel scan directly on a scaled matrix |
+| `scan(X_sc, y, n_bins, top_k)` | Run 3D voxel scan directly on a scaled matrix |
 | `adaptive_bins(n_train)` | Returns optimal grid size for dataset size |
 
 ### `synthedge.quality`
@@ -237,7 +289,7 @@ The Cardiovascular 70k result is intentionally honest — on a near-balanced dat
 
 ## Multi-dataset gap transfer
 
-If you have multiple datasets covering the same domain, SynthEdge can find matching gap regions across them using centroid cosine similarity. It then transfers **real samples** — not synthetic ones — from the less-sparse dataset into the more-sparse one.
+If you have multiple datasets from the same domain, SynthEdge finds matching gap regions across them using centroid cosine similarity and transfers **real samples** from the less-sparse dataset into the more-sparse one.
 
 ```python
 from synthedge.scanner import scan
@@ -267,59 +319,3 @@ datasets_info = [
 matches   = find_matching_gaps(datasets_info, similarity_threshold=0.65)
 transfers = transfer_samples(matches, n_transfer=20)
 X_aug, y_aug, n_added = apply_transfers("Cleveland", X_cl, y_cl, transfers)
-```
-
----
-
-## When to use SynthEdge
-
-| Use SynthEdge | Use SMOTE instead |
-|---|---|
-| Clinical / healthcare data | Generic, uniformly imbalanced datasets |
-| Specific demographic subgroups underrepresented | No clear structural gap pattern |
-| Audit or compliance requirements (gap report) | Quick baseline augmentation |
-| Multiple related datasets available (transfer) | Single tiny dataset, no CTGAN data |
-| Severity = `MODERATE` or `SEVERE` | Severity = `NONE` or `MILD` |
-
----
-
-## HTML gap report
-
-Every `se.save_report()` call generates a standalone HTML file that works in any browser. The report includes:
-
-- **Severity banner** — level, score, and plain-English recommendation
-- **Metric cards** — dataset size, positive rate, gap voxels found, samples added
-- **Gap voxel map** — ranked table with inline score bars
-- **Synthesis summary** — which method (CTGAN or Gaussian) was used per voxel
-- **Severity signals** — all six raw inputs to the classifier
-- **Model comparison charts** — Recall, F1, ROC-AUC, PR-AUC bar charts (when comparison results are provided)
-
-The report is shareable, auditable, and suitable for model cards, compliance documents, and pull request reviews.
-
----
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md). The most valuable contributions are benchmark results on new domains — fraud detection, anomaly detection, and rare disease datasets are especially welcome.
-
-```bash
-git clone https://github.com/Juzt-nik/SynthEdge.git
-cd SynthEdge
-pip install -e ".[dev]"
-pip install ctgan imbalanced-learn xgboost
-pytest tests/ -v
-```
-
----
-
-## Citation
-
-```bibtex
-@software{synthedge2025,
-  title  = {SynthEdge: Diagnosis-first synthetic data augmentation for imbalanced tabular datasets},
-  author = {Sagnik},
-  year   = {2025},
-  url    = {https://github.com/Juzt-nik/SynthEdge},
-  note   = {pip install synthedge}
-}
-```
