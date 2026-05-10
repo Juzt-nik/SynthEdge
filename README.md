@@ -319,3 +319,38 @@ datasets_info = [
 matches   = find_matching_gaps(datasets_info, similarity_threshold=0.65)
 transfers = transfer_samples(matches, n_transfer=20)
 X_aug, y_aug, n_added = apply_transfers("Cleveland", X_cl, y_cl, transfers)
+```
+
+---
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). The most valuable contributions are benchmark results on new domains — fraud detection, anomaly detection, and rare disease datasets are especially welcome. Honest results where SynthEdge does not win are as valuable as wins.
+
+```bash
+git clone https://github.com/Juzt-nik/SynthEdge.git
+cd SynthEdge
+pip install -e ".[dev]"
+pip install ctgan imbalanced-learn xgboost
+pytest tests/ -v
+```
+
+---
+
+## Citation
+
+```bibtex
+@software{synthedge2025,
+  title  = {SynthEdge: Diagnosis-first synthetic data augmentation for imbalanced tabular datasets},
+  author = {Sagnik},
+  year   = {2025},
+  url    = {https://github.com/Juzt-nik/SynthEdge},
+  note   = {pip install synthedge}
+}
+```
+
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE).
